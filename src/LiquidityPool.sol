@@ -4,6 +4,8 @@ pragma solidity 0.8.17;
 import {IERC20} from "openzeppelin-contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
 
+// 1. Я ничего не вставил в контракт про fee, предлагаю опустить это и сказать о физах, как о недостатке нашего решения в конце.
+// 2. Я переделал модификаторы методов. Идея такая, что любой может стать поставщиком ликвидности и любой может занимать средства.
 contract LiquidityPool {
     using SafeERC20 for IERC20;
 
@@ -60,6 +62,9 @@ contract LiquidityPool {
         emit LiquidityWithdrawn(msg.sender, amount);
     }
 
+    // Этот метод предлагаю переименовать с takeLeverage на borrow. Так вроде и по контексту больше подходит и по смыслу.
+    // Еще я убрал аргумент leverage предлагаю, чтобы пул занимался только выдачей займов и закрытием и ничего не знал о плечах.
+    // Сумма с плечом будет рассчитываться в контракте Margin trading
     function borrow(uint256 amount) external {
         if (amount > token.balanceOf(address(this))) {
             revert LiquidityPool_InsufficientLiquidity();
