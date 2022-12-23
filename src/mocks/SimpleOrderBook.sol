@@ -25,14 +25,14 @@ contract SimpleOrderBook {
     function buy(address sellToken, address buyToken, uint buyAmount) external returns (uint256 soldAmount) {
         soldAmount = calcAmountToSell(sellToken, buyToken, buyAmount);
 
-        IERC20(sellToken).transferFrom(msg.sender, address(this), soldAmount);
-        IERC20(buyToken).transfer(msg.sender, buyAmount);
+        IERC20(sellToken).safeTransferFrom(msg.sender, address(this), soldAmount);
+        IERC20(buyToken).safeTransfer(msg.sender, buyAmount);
     }
 
     function sell(address sellToken, address buyToken, uint sellAmount) external returns (uint256 boughtAmount) {
         boughtAmount = calcAmountToBuy(sellToken, buyToken, sellAmount);
 
-        IERC20(sellToken).transferFrom(msg.sender, address(this), sellAmount);
-        IERC20(buyToken).transfer(msg.sender, boughtAmount);
+        IERC20(sellToken).safeTransferFrom(msg.sender, address(this), sellAmount);
+        IERC20(buyToken).safeTransfer(msg.sender, boughtAmount);
     }
 }

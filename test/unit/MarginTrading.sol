@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
+import {SafeERC20} from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../../src/MarginTrading.sol";
 import "../../src/LiquidityPool.sol";
@@ -9,6 +10,8 @@ import "../../src/mocks/MockToken.sol";
 import "../../src/mocks/SimpleOrderBook.sol";
 
 contract MargingTradingTest is Test {
+    using SafeERC20 for MockToken;
+
     MockToken tokenA;
     MockToken tokenB;
 
@@ -118,7 +121,7 @@ contract MargingTradingTest is Test {
 
         vm.startPrank(liquidityProvider);
 
-        tokenA.approve(address(liquidityPool), amount);
+        tokenA.safeApprove(address(liquidityPool), amount);
         liquidityPool.deposit(amount);
 
         vm.stopPrank();

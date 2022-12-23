@@ -51,28 +51,28 @@ contract MarginTrading is Ownable {
         longDebtA += amountAToSell;
         longBalanceB += amountBToBuy;
 
-        tokenA.approve(address(orderBook), amountAToSell);
+        tokenA.safeApprove(address(orderBook), amountAToSell);
         orderBook.buy(address(tokenA), address(tokenB), amountBToBuy);
 
         emit LongOpened();
     }
 
     function closeLong() external onlyOwner {
-        tokenB.approve(address(orderBook), longBalanceB);
+        tokenB.safeApprove(address(orderBook), longBalanceB);
         uint256 balanceA = orderBook.sell(address(tokenB), address(tokenA), longBalanceB);
 
         if (balanceA < longDebtA) {
             revert MarginTrading__InsufficientAmountForClosePosition();
         }
 
-        tokenA.approve(address(liquidityPool), longDebtA);
+        tokenA.safeApprove(address(liquidityPool), longDebtA);
         liquidityPool.repay(longDebtA);
 
         longDebtA = 0;
         longBalanceB = 0;
 
         uint256 freeTokenA = tokenA.balanceOf(address(this));
-        tokenA.transfer(owner(), freeTokenA);
+        tokenA.safeTransfer(owner(), freeTokenA);
 
         emit LongClosed();
     }
@@ -82,28 +82,28 @@ contract MarginTrading is Ownable {
 
         shortDebtA += amountAToSell * leverage;
 
-        tokenA.approve(address(orderBook), amountAToSell * leverage);
+        tokenA.safeApprove(address(orderBook), amountAToSell * leverage);
         shortBalanceB += orderBook.sell(address(tokenA), address(tokenB), amountAToSell * leverage);
 
         emit ShortOpened();
     }
 
     function closeShort() external {
-        tokenB.approve(address(orderBook), shortBalanceB);
+        tokenB.safeApprove(address(orderBook), shortBalanceB);
         uint256 balanceA = orderBook.buy(address(tokenB), address(tokenA), shortDebtA);
 
         if (balanceA < longDebtA) {
             revert MarginTrading__InsufficientAmountForClosePosition();
         }
 
-        tokenA.approve(address(liquidityPool), shortDebtA);
+        tokenA.safeApprove(address(liquidityPool), shortDebtA);
         liquidityPool.repay(shortDebtA);
 
         shortDebtA = 0;
         shortBalanceB = 0;
 
         uint256 freeTokenB = tokenB.balanceOf(address(this));
-        tokenB.transfer(owner(), freeTokenB);
+        tokenB.safeTransfer(owner(), freeTokenB);
 
         emit ShortClosed();
     }

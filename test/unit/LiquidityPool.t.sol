@@ -2,11 +2,14 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
+import {SafeERC20} from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../../src/LiquidityPool.sol";
 import "../../src/mocks/MockToken.sol";
 
 contract LiquidityPoolTest is Test {
+    using SafeERC20 for MockToken;
+
     LiquidityPool liquidityPool;
     MockToken tokenA;
 
@@ -27,7 +30,7 @@ contract LiquidityPoolTest is Test {
 
         vm.startPrank(liquidityProvider);
 
-        tokenA.approve(address(liquidityPool), amount);
+        tokenA.safeApprove(address(liquidityPool), amount);
         liquidityPool.deposit(amount);
 
         assertEq(tokenA.balanceOf(address(liquidityPool)), amount);
@@ -41,7 +44,7 @@ contract LiquidityPoolTest is Test {
     function _beforeEach_withdraw(uint256 amount) private {
         vm.startPrank(liquidityProvider);
 
-        tokenA.approve(address(liquidityPool), amount);
+        tokenA.safeApprove(address(liquidityPool), amount);
         liquidityPool.deposit(amount);
 
         vm.stopPrank();
@@ -103,7 +106,7 @@ contract LiquidityPoolTest is Test {
     function _beforeEach_borrow(uint256 amount) private {
         vm.startPrank(liquidityProvider);
 
-        tokenA.approve(address(liquidityPool), amount);
+        tokenA.safeApprove(address(liquidityPool), amount);
         liquidityPool.deposit(amount);
 
         vm.stopPrank();
@@ -154,7 +157,7 @@ contract LiquidityPoolTest is Test {
     function _beforeEach_repay(uint256 depositAmount, uint256 borrowAmount) private {
         vm.startPrank(liquidityProvider);
 
-        tokenA.approve(address(liquidityPool), depositAmount);
+        tokenA.safeApprove(address(liquidityPool), depositAmount);
         liquidityPool.deposit(depositAmount);
 
         vm.stopPrank();
@@ -168,7 +171,7 @@ contract LiquidityPoolTest is Test {
 
         _beforeEach_repay(depositAmount, borrowAmount);
 
-        tokenA.approve(address(liquidityPool), borrowAmount);
+        tokenA.safeApprove(address(liquidityPool), borrowAmount);
         liquidityPool.repay(borrowAmount);
 
         assertEq(tokenA.balanceOf(address(this)), 0);
@@ -183,7 +186,7 @@ contract LiquidityPoolTest is Test {
 
         _beforeEach_repay(depositAmount, borrowAmount);
 
-        tokenA.approve(address(liquidityPool), repayAmount);
+        tokenA.safeApprove(address(liquidityPool), repayAmount);
         liquidityPool.repay(repayAmount);
 
         assertEq(tokenA.balanceOf(address(this)), borrowAmount - repayAmount);
@@ -199,7 +202,7 @@ contract LiquidityPoolTest is Test {
         _beforeEach_repay(depositAmount, borrowAmount);
 
         vm.startPrank(notBorrower);
-        tokenA.approve(address(liquidityPool), borrowAmount);
+        tokenA.safeApprove(address(liquidityPool), borrowAmount);
 
         vm.expectRevert(abi.encodeWithSignature("LiquidityPool_CallerIsNotBorrower(address)", notBorrower));
         liquidityPool.repay(borrowAmount);

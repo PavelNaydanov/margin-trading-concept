@@ -2,11 +2,14 @@
 pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
+import {SafeERC20} from "openzeppelin-contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../../src/mocks/SimpleOrderBook.sol";
 import "../../src/mocks/MockToken.sol";
 
 contract SimpleOrderBookTest is Test {
+    using SafeERC20 for MockToken;
+
     MockToken tokenA;
     MockToken tokenB;
 
@@ -43,7 +46,7 @@ contract SimpleOrderBookTest is Test {
 
         tokenA.mint(address(this), sellAmount);
 
-        tokenA.approve(address(orderBook), sellAmount);
+        tokenA.safeApprove(address(orderBook), sellAmount);
         orderBook.buy(address(tokenA), address(tokenB), buyAmount);
 
         assertEq(buyAmount, tokenB.balanceOf(address(this)));
@@ -56,7 +59,7 @@ contract SimpleOrderBookTest is Test {
 
         tokenA.mint(address(this), sellAmount);
 
-        tokenA.approve(address(orderBook), sellAmount);
+        tokenA.safeApprove(address(orderBook), sellAmount);
         orderBook.sell(address(tokenA), address(tokenB), sellAmount);
 
         assertEq(buyAmount, tokenB.balanceOf(address(this)));
