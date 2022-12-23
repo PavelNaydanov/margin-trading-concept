@@ -8,10 +8,6 @@ import {Ownable} from "openzeppelin-contracts/access/Ownable.sol";
 import "./interfaces/ILiquidityPool.sol";
 import "./interfaces/ISimpleOrderBook.sol";
 
-// 1. Закрыл методы под владельца контракта. Как будто этим контрактом может воспользоваться только один конкретный пользователь. Для простоты хранения средств на контракте между открытием и закрытием позиции.
-// 2. Оставил один универсальный метод openPosition. Этот метод принимает orderId. Подразумевем, что ордер с таким иденификатором уже был создан в ордербуке.
-// Предполагаем, что поиск подходящего ордера за пределами этого контракта и урока. Это позвоялет нам не ломать мозг студенту и не менять его написанный контракт ордербука.
-// Тогда метод buy ордербука подходит под открытие любой позиции long или short. Главное мы здесь показываем, что для закрытия ордера, мы используем заемные средства из контракта LiquidityPool.
 contract MarginTrading is Ownable {
     using SafeERC20 for IERC20;
 
@@ -21,8 +17,18 @@ contract MarginTrading is Ownable {
     IERC20 tokenA;
     IERC20 tokenB;
 
-    event PositionOpened(uint256 amount);
-    event PositionClosed(uint256 amount);
+    uint256 public longDebtA;
+    uint256 public longBalanceB;
+
+    uint256 public shortDebtA;
+    uint256 public shortBalanceB;
+
+    error MarginTrading__InsufficientAmountForClosePosition();
+
+    event LongOpened();
+    event LongClosed();
+    event ShortOpened();
+    event ShortClosed();
 
     constructor(
         address _liquidityPool,
@@ -37,32 +43,68 @@ contract MarginTrading is Ownable {
         tokenB = IERC20(_tokenB);
     }
 
-    function openPosition(uint256 orderId, uint256 amount, uint256 leverage) external onlyOwner {
-        uint256 loanAmount = amount * leverage;
+    function openLong(uint256 amountBToBuy, uint256 leverage) external onlyOwner {
+        uint256 amountAToSell = orderBook.calcAmountToSell(address(tokenA), address(tokenB), amountBToBuy * leverage);
 
-        liquidityPool.borrow(loanAmount);
+        liquidityPool.borrow(amountAToSell);
 
-        // Метод buy всего лишь закрывает уже существующий ордер
-        // Если это ордер на покупку токена B(в обмен отдаем токен А), то это long position
-        // Если это ордер на продажу токена A(в обмен получаем токен B), то это short position
-        tokenA.safeApprove(address(orderBook), loanAmount);
-        orderBook.buy(orderId, loanAmount);
+        longDebtA += amountAToSell;
+        longBalanceB += amountBToBuy;
 
-        emit PositionOpened(loanAmount);
+        tokenA.approve(address(orderBook), amountAToSell);
+        orderBook.buy(address(tokenA), address(tokenB), amountBToBuy);
+
+        emit LongOpened();
     }
 
-    function closePosition(uint256 orderId) external onlyOwner {
-        tokenB.approve(address(orderBook), tokenB.balanceOf(address(this)));
-        orderBook.buy(orderId, tokenB.balanceOf(address(this)));
+    function closeLong() external onlyOwner {
+        tokenB.approve(address(orderBook), longBalanceB);
+        uint256 balanceA = orderBook.sell(address(tokenB), address(tokenA), longBalanceB);
 
-        uint256 debt = liquidityPool.getDebt(address(this));
+        if (balanceA < longDebtA) {
+            revert MarginTrading__InsufficientAmountForClosePosition();
+        }
 
-        tokenA.approve(address(liquidityPool), debt);
-        liquidityPool.repay(debt);
+        tokenA.approve(address(liquidityPool), longDebtA);
+        liquidityPool.repay(longDebtA);
 
-        uint256 profit = tokenA.balanceOf(address(this));
-        tokenA.safeTransfer(owner(), profit);
+        longDebtA = 0;
+        longBalanceB = 0;
 
-        emit PositionClosed(profit);
+        uint256 freeTokenA = tokenA.balanceOf(address(this));
+        tokenA.transfer(owner(), freeTokenA);
+
+        emit LongClosed();
+    }
+
+    function openShort(uint256 amountAToSell, uint leverage) external {
+        liquidityPool.borrow(amountAToSell * leverage);
+
+        shortDebtA += amountAToSell * leverage;
+
+        tokenA.approve(address(orderBook), amountAToSell * leverage);
+        shortBalanceB += orderBook.sell(address(tokenA), address(tokenB), amountAToSell * leverage);
+
+        emit ShortOpened();
+    }
+
+    function closeShort() external {
+        tokenB.approve(address(orderBook), shortBalanceB);
+        uint256 balanceA = orderBook.buy(address(tokenB), address(tokenA), shortDebtA);
+
+        if (balanceA < longDebtA) {
+            revert MarginTrading__InsufficientAmountForClosePosition();
+        }
+
+        tokenA.approve(address(liquidityPool), shortDebtA);
+        liquidityPool.repay(shortDebtA);
+
+        shortDebtA = 0;
+        shortBalanceB = 0;
+
+        uint256 freeTokenB = tokenB.balanceOf(address(this));
+        tokenB.transfer(owner(), freeTokenB);
+
+        emit ShortClosed();
     }
 }
